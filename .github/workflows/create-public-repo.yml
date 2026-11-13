@@ -1,0 +1,77 @@
+name: Create public Android repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_name:
+        description: 'Repository name (letters, digits, dot, underscore, hyphen)'
+        required: true
+        type: string
+      description:
+        description: 'Short description of the new application'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate input and permissions
+        shell: bash
+        env:
+          NEW_REPO: ${{ inputs.repository_name }}
+          CREATE_TOKEN: ${{ secrets.RMLALA_REPO_CREATOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$NEW_REPO" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$ ]]; then
+            echo "::error::Invalid repository name"
+            exit 1
+          fi
+          if [[ -z "$CREATE_TOKEN" ]]; then
+            echo "::error::RMLALA_REPO_CREATOR_TOKEN is not configured"
+            exit 1
+          fi
+
+      - name: Create public repository from template
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RMLALA_REPO_CREATOR_TOKEN }}
+          NEW_REPO: ${{ inputs.repository_name }}
+          DESCRIPTION: ${{ inputs.description }}
+        run: |
+          set -euo pipefail
+          # Do not overwrite existing repositories.
+          status=$(gh api -H "Accept: application/vnd.github+json" \
+            "/repos/RMLala/$NEW_REPO" --silent >/dev/null 2>&1 && echo exists || echo missing)
+          if [[ "$status" == exists ]]; then
+            echo "::error::Repository RMLala/$NEW_REPO already exists. No changes made."
+            exit 1
+          fi
+          gh api --method POST "/repos/RMLala/android-template/generate" \
+            -H "Accept: application/vnd.github+json" \
+            -f owner="RMLala" \
+            -f name="$NEW_REPO" \
+            -f description="$DESCRIPTION" \
+            -F private=false \
+            -F include_all_branches=false \
+            --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Create isolated development branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RMLALA_REPO_CREATOR_TOKEN }}
+          NEW_REPO: ${{ inputs.repository_name }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            sha=$(gh api "/repos/RMLala/$NEW_REPO/git/ref/heads/main" --jq '.object.sha' 2>/dev/null) && break
+            sleep 3
+          done
+          test -n "${sha:-}"
+          gh api --method POST "/repos/RMLala/$NEW_REPO/git/refs" \
+            -f ref="refs/heads/work/initial-development" \
+            -f sha="$sha" >/dev/null
+          echo "Created RMLala/$NEW_REPO branch work/initial-development" >> "$GITHUB_STEP_SUMMARY"

@@ -6,9 +6,9 @@ Modèle public de démarrage pour les applications Android de **RMLala**.
 
 - Android Gradle Plugin **8.7.3**, Gradle **8.9**, JDK 17.
 - Deux variantes : **api23** (Android 6+) et **api29** (Android 10+).
-- Trois artefacts standards : **Debug API23**, **Release API23**, **Release API29**.
+- Quatre artefacts standards : **Debug API23**, **Debug API29**, **Release API23**, **Release API29**.
 - Les deux Release utilisent les secrets de signature de l'organisation, jamais le keystore dans Git.
-- Les PR compilent uniquement Debug : **aucun secret de signature n'est exposé dans les PR**.
+- Les PR compilent les deux Debug (API23 et API29) : **aucun secret de signature n'est exposé dans les PR**.
 - Les Release signées sont compilées sur `main` ou sur lancement manuel `workflow_dispatch` ; limiter les autorisations de déclenchement.
 - Pas de PWA.
 
@@ -26,6 +26,15 @@ Modèle public de démarrage pour les applications Android de **RMLala**.
 4. Développer sur une branche unique, ouvrir une PR, contrôler le build et fusionner uniquement après validation explicite.
 5. Conserver `versionName` entre Debug et Release ; incrémenter `releaseVersionCode` uniquement pour une Release réellement distribuée.
 6. Ne jamais mettre le fichier keystore, les mots de passe ou les fichiers `local.properties` dans le dépôt.
+
+## Standard de livraison pour tous les dépôts
+
+- Les Pull Requests vers `main` doivent déclencher automatiquement les tests et les deux builds Debug.
+- Sur `main` ou déclenchement manuel autorisé, compiler les deux Release signées et vérifier les quatre APK.
+- Ne pas exposer les secrets aux Pull Requests non fiables ; éviter `pull_request_target` pour les builds de code proposé.
+- Adapter les workflows des projets Capacitor/HTML à leur structure propre : ne pas remplacer les sources métier par ce squelette.
+- Vérifier que les noms des secrets correspondent aux secrets de l'organisation ; aucune valeur de secret ne doit être publiée.
+- Une fusion nécessite une validation explicite, après tests, artefacts et vérification fonctionnelle.
 
 ## Portée de l'automatisation
 

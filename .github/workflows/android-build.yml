@@ -2,6 +2,7 @@ name: Android build API23/API29
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -21,12 +22,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build Debug
-        run: gradle --no-daemon :app:assembleApi23Debug
+      - name: Build Debug API23 and API29
+        run: gradle --no-daemon :app:assembleApi23Debug :app:assembleApi29Debug
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-api23
           path: app/build/outputs/apk/api23/debug/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-api29
+          path: app/build/outputs/apk/api29/debug/*.apk
           if-no-files-found: error
   release:
     if: github.event_name != 'pull_request'

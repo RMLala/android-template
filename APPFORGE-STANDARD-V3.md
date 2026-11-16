@@ -24,3 +24,6 @@ Applicabilité : toutes les applications actuelles et futures de RMLala. Ce docu
 - Inventorier tous les dépôts RMLala et les nouveaux dépôts, distinguer prévu/développé/testé/validé ; signaler les écarts sans inventer de preuves.
 - Audit sur chaque évolution, rapport hebdomadaire, mise à jour du suivi global et trois prochaines actions par application.
 - Une CI de conformité ne doit pas prétendre valider biométrie, partage Drive, licence ou synchronisation sans tests d'intégration pertinents.
+
+## Gouvernance des Pull Requests
+Toute modification passe par une Pull Request (PR) avec contrôles CI vérifiés avant fusion. Une PR technique conforme peut être fusionnée selon l'autorisation générale ; une modification fonctionnelle majeure exige une nouvelle validation.

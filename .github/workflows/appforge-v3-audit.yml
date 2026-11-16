@@ -1,0 +1,40 @@
+name: AppForge V3 repository audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 5 * * 1-5'
+permissions:
+  contents: read
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check standard and write audit report
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, os
+          root=pathlib.Path('.')
+          standard=root/'APPFORGE-STANDARD-V3.md'
+          assert standard.is_file(), 'Missing APPFORGE-STANDARD-V3.md'
+          s=standard.read_text(encoding='utf-8')
+          terms=['Offline-first','Cloudflare','OAuth','biométrie','PIN','À propos','APK','Pull']
+          missing=[x for x in terms if x.lower() not in s.lower()]
+          assert not missing, 'Missing standard topics: '+', '.join(missing)
+          candidates=[p for p in root.rglob('*') if p.is_file() and '.git' not in p.parts and 'node_modules' not in p.parts and p.suffix.lower() in {'.js','.ts','.tsx','.jsx','.kt','.java','.html'}]
+          warnings=[]
+          patterns=[('Drive OAuth review',r'(?:drive\.googleapis\.com|GoogleSignIn|googleapis\.com/auth/drive)'),('Potential hardcoded token review',r'(?:ghp_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{25,})')]
+          for p in candidates:
+            if p.stat().st_size>1_000_000: continue
+            data=p.read_text(encoding='utf-8',errors='replace')
+            for label,pattern in patterns:
+              if re.search(pattern,data,re.I): warnings.append(f'{label}: {p}')
+          lines=['# AppForge V3 — static audit','',f'Standard present: YES',f'Files scanned: {len(candidates)}','','## Review flags'] + (['- '+x for x in warnings] if warnings else ['- No pattern flags in scanned files']) + ['','## Not tested','- Biometric runtime and PIN security','- Drive native share/restore and encryption','- Cloudflare licensing, sync and conflict resolution','- Android signing, artifact availability and UX','- Functional compliance requires per-app tests']
+          out=pathlib.Path(os.environ['GITHUB_STEP_SUMMARY'])
+          out.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          print('\n'.join(lines))
+          PY

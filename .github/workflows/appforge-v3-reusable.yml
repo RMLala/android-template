@@ -1,0 +1,52 @@
+name: AppForge V3 reusable compliance gate
+on:
+  workflow_call:
+    inputs:
+      source_dir:
+        type: string
+        default: .
+        required: false
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit V3 source and publish evidence
+        env:
+          SOURCE_DIR: ${{ inputs.source_dir }}
+        run: |
+          python3 - <<'PY'
+          import os,pathlib,re,json
+          root=pathlib.Path(os.environ['SOURCE_DIR']).resolve()
+          if not root.is_dir(): raise SystemExit('Invalid source directory')
+          skip={'.git','node_modules','build','dist','.gradle','.next','coverage'}
+          suffix={'.js','.ts','.tsx','.jsx','.kt','.java','.html','.json','.xml','.yml','.yaml'}
+          patterns={
+            'drive_oauth':r'drive\.googleapis\.com|googleapis\.com/auth/drive|GoogleSignIn',
+            'pwa_registration':r'serviceWorker\.register|navigator\.serviceWorker\.register',
+            'possible_secret':r'ghp_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{25,}',
+            'about_version_history':r'Historique des versions|Version history',
+          }
+          findings=[];scanned=0
+          for p in root.rglob('*'):
+            if not p.is_file() or p.suffix.lower() not in suffix or any(part in skip for part in p.relative_to(root).parts) or p.stat().st_size>1_000_000: continue
+            scanned+=1
+            try: data=p.read_text(encoding='utf-8',errors='replace')
+            except OSError: continue
+            for name,pattern in patterns.items():
+              if re.search(pattern,data,re.I): findings.append({'check':name,'file':str(p.relative_to(root))})
+          report={'standard':'APPFORGE-STANDARD-V3','files_scanned':scanned,'review_flags':findings,'runtime_verified':False}
+          pathlib.Path('appforge-v3-audit.json').write_text(json.dumps(report,indent=2,ensure_ascii=False))
+          summary=['# AppForge V3 — evidence report',f'Files scanned: {scanned}',f'Flags: {len(findings)}','','## Review flags']
+          summary += [f"- {x['check']}: \`{x['file']}\`" for x in findings] or ['- No static flags']
+          summary += ['','## Not verified by this gate','- Biometric/PIN runtime, native Drive sharing, encryption and restore','- Cloudflare D1 sync, licenses and revocation','- Launcher logo quality, signed APK artifacts, functional UX','- A green workflow does not mean full V3 compliance']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out: out.write('\n'.join(summary)+'\n')
+          print(json.dumps(report,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appforge-v3-static-audit
+          path: appforge-v3-audit.json
+          retention-days: 30

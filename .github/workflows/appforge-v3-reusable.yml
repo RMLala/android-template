@@ -37,13 +37,19 @@ jobs:
             except OSError: continue
             for name,pattern in patterns.items():
               if re.search(pattern,data,re.I): findings.append({'check':name,'file':str(p.relative_to(root))})
-          report={'standard':'APPFORGE-STANDARD-V3','files_scanned':scanned,'review_flags':findings,'runtime_verified':False}
+          # Block only high-confidence credential leaks. Other signals require review, not automatic rejection.
+          blocking_checks={'possible_secret'}
+          blocking=[x for x in findings if x['check'] in blocking_checks]
+          advisory=[x for x in findings if x['check'] not in blocking_checks]
+          report={'standard':'APPFORGE-STANDARD-V3','files_scanned':scanned,'blocking_findings':blocking,'review_flags':advisory,'runtime_verified':False,'passed':not blocking}
           pathlib.Path('appforge-v3-audit.json').write_text(json.dumps(report,indent=2,ensure_ascii=False))
-          summary=['# AppForge V3 — evidence report',f'Files scanned: {scanned}',f'Flags: {len(findings)}','','## Review flags']
+          summary=['# AppForge V3 — evidence report',f'Files scanned: {scanned}',f'Blocking: {len(blocking)}; advisory: {len(advisory)}','','## Review flags']
           summary += [f"- {x['check']}: \`{x['file']}\`" for x in findings] or ['- No static flags']
           summary += ['','## Not verified by this gate','- Biometric/PIN runtime, native Drive sharing, encryption and restore','- Cloudflare D1 sync, licenses and revocation','- Launcher logo quality, signed APK artifacts, functional UX','- A green workflow does not mean full V3 compliance']
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out: out.write('\n'.join(summary)+'\n')
           print(json.dumps(report,ensure_ascii=False))
+          if blocking:
+            raise SystemExit('V3 blocked: possible embedded credentials found; remove and rotate exposed credentials')
           PY
       - uses: actions/upload-artifact@v4
         with:

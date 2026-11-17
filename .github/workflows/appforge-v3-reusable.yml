@@ -52,6 +52,7 @@ jobs:
             raise SystemExit('V3 blocked: possible embedded credentials found; remove and rotate exposed credentials')
           PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: appforge-v3-static-audit
           path: appforge-v3-audit.json

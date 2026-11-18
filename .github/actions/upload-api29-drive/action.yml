@@ -1,0 +1,52 @@
+name: Archive Android API29 APK to Drive
+description: Upload a real API29 APK on a trusted successful main build
+inputs:
+  apk-glob:
+    required: true
+    description: APK glob
+  application:
+    required: true
+    description: Application name
+  folder-id:
+    required: true
+    description: Drive folder ID
+  service-account-json:
+    required: true
+    description: Google service account JSON from GitHub secrets
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        APK_GLOB: ${{ inputs.apk-glob }}
+        APP_NAME: ${{ inputs.application }}
+        DRIVE_FOLDER_ID: ${{ inputs.folder-id }}
+        DRIVE_SERVICE_ACCOUNT_JSON: ${{ inputs.service-account-json }}
+      run: |
+        set -euo pipefail
+        if [[ "$GITHUB_EVENT_NAME" != push || "$GITHUB_REF" != refs/heads/main ]]; then
+          echo "Skip untrusted/non-main build"
+          exit 0
+        fi
+        test -n "$DRIVE_SERVICE_ACCOUNT_JSON" || { echo "::error::Missing DRIVE_SERVICE_ACCOUNT_JSON"; exit 1; }
+        python3 - <<'PY'
+        import json,os
+        x=json.loads(os.environ['DRIVE_SERVICE_ACCOUNT_JSON'])
+        assert x.get('type')=='service_account' and x.get('private_key') and x.get('client_email')
+        PY
+        curl -fsSL https://rclone.org/install.sh | sudo bash
+        export RCLONE_CONFIG_ARCHIVE_TYPE=drive
+        export RCLONE_CONFIG_ARCHIVE_SCOPE=drive
+        export RCLONE_CONFIG_ARCHIVE_SERVICE_ACCOUNT_CREDENTIALS="$DRIVE_SERVICE_ACCOUNT_JSON"
+        export RCLONE_CONFIG_ARCHIVE_ROOT_FOLDER_ID="$DRIVE_FOLDER_ID"
+        python3 - <<'PY'
+        import glob,os,re,subprocess,sys
+        paths=[p for p in glob.glob(os.environ['APK_GLOB'],recursive=True) if p.endswith('.apk') and os.path.getsize(p)>0]
+        if not paths: sys.exit('No nonempty API29 APK; ZIP archives are not accepted')
+        app=re.sub('[^a-zA-Z0-9_.-]+','-',os.environ['APP_NAME'])
+        for path in paths:
+            dest=f"archive:{app}-run{os.environ['GITHUB_RUN_ID']}-{os.path.basename(path)}"
+            subprocess.run(['rclone','copyto',path,dest,'--immutable','--drive-chunk-size','16M'],check=True)
+            subprocess.run(['rclone','lsjson',dest],check=True)
+            print('Drive verified:',dest)
+        PY

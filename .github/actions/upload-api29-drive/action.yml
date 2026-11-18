@@ -10,9 +10,15 @@ inputs:
   folder-id:
     required: true
     description: Drive folder ID
-  service-account-json:
+  oauth-client-id:
     required: true
-    description: Google service account JSON from GitHub secrets
+    description: Google OAuth client ID from GitHub secrets
+  oauth-client-secret:
+    required: true
+    description: Google OAuth client secret from GitHub secrets
+  oauth-token-json:
+    required: true
+    description: Google OAuth token JSON containing refresh_token from GitHub secrets
 runs:
   using: composite
   steps:
@@ -21,23 +27,27 @@ runs:
         APK_GLOB: ${{ inputs.apk-glob }}
         APP_NAME: ${{ inputs.application }}
         DRIVE_FOLDER_ID: ${{ inputs.folder-id }}
-        DRIVE_SERVICE_ACCOUNT_JSON: ${{ inputs.service-account-json }}
+        DRIVE_OAUTH_CLIENT_ID: ${{ inputs.oauth-client-id }}
+        DRIVE_OAUTH_CLIENT_SECRET: ${{ inputs.oauth-client-secret }}
+        DRIVE_OAUTH_TOKEN_JSON: ${{ inputs.oauth-token-json }}
       run: |
         set -euo pipefail
         if [[ "$GITHUB_EVENT_NAME" != push || "$GITHUB_REF" != refs/heads/main ]]; then
           echo "Skip untrusted/non-main build"
           exit 0
         fi
-        test -n "$DRIVE_SERVICE_ACCOUNT_JSON" || { echo "::error::Missing DRIVE_SERVICE_ACCOUNT_JSON"; exit 1; }
+        test -n "$DRIVE_OAUTH_CLIENT_ID" && test -n "$DRIVE_OAUTH_CLIENT_SECRET" && test -n "$DRIVE_OAUTH_TOKEN_JSON" || { echo "::error::Missing Drive OAuth secrets"; exit 1; }
         python3 - <<'PY'
         import json,os
-        x=json.loads(os.environ['DRIVE_SERVICE_ACCOUNT_JSON'])
-        assert x.get('type')=='service_account' and x.get('private_key') and x.get('client_email')
+        x=json.loads(os.environ['DRIVE_OAUTH_TOKEN_JSON'])
+        assert x.get('refresh_token'), 'OAuth refresh_token missing'
         PY
         curl -fsSL https://rclone.org/install.sh | sudo bash
         export RCLONE_CONFIG_ARCHIVE_TYPE=drive
         export RCLONE_CONFIG_ARCHIVE_SCOPE=drive
-        export RCLONE_CONFIG_ARCHIVE_SERVICE_ACCOUNT_CREDENTIALS="$DRIVE_SERVICE_ACCOUNT_JSON"
+        export RCLONE_CONFIG_ARCHIVE_CLIENT_ID="$DRIVE_OAUTH_CLIENT_ID"
+        export RCLONE_CONFIG_ARCHIVE_CLIENT_SECRET="$DRIVE_OAUTH_CLIENT_SECRET"
+        export RCLONE_CONFIG_ARCHIVE_TOKEN="$DRIVE_OAUTH_TOKEN_JSON"
         export RCLONE_CONFIG_ARCHIVE_ROOT_FOLDER_ID="$DRIVE_FOLDER_ID"
         python3 - <<'PY'
         import glob,os,re,subprocess,sys

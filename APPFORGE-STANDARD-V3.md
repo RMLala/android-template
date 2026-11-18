@@ -32,6 +32,13 @@ Applicabilité : toutes les applications actuelles et futures de RMLala. Ce docu
 - Ne pas produire de PWA. Signature via secrets GitHub et clé commune. versionName identique Debug/Release, versionCode adapté.
 - Finalisé seulement après tests, preuves, artefacts et validation utilisateur. Visibilité public/privé uniquement après accord.
 
+## Archivage automatique des APK API29 dans Google Drive
+- À chaque compilation Android **réussie sur main**, transférer les fichiers `.apk` API29 réellement générés (Release signé, Debug si sélectionné) vers le dossier Drive central `1eH5p4sh-C6uCKC9_WbweSmf5GqIBK6N7`, idéalement dans le sous-dossier de l'application.
+- Déclenchement **événementiel GitHub Actions**, sans tâche planifiée. Ne jamais renommer un ZIP en APK. Ne jamais effacer ni écraser une ancienne version.
+- Action réutilisable : `RMLala/android-template/.github/actions/upload-api29-drive@main`. Elle attend le chemin du véritable APK, le nom de l'application, le dossier Drive et `secrets.DRIVE_SERVICE_ACCOUNT_JSON`. Le compte de service doit disposer d'un droit d'écriture sur le dossier de destination ; le secret n'est jamais inclus dans le code.
+- La copie doit être suivie d'une vérification de présence sur Drive. Un secret absent ou un transfert échoué doivent produire un échec explicite de l'étape d'archivage, sans faire passer une compilation réussie pour un upload réussi.
+- Les dépôts sans variante API29 identifiable ne doivent pas publier un APK générique sous l'étiquette API29. Adapter le workflow Android et vérifier les signatures avant l'archivage.
+
 ## Audit
 - Inventorier tous les dépôts RMLala et les nouveaux dépôts, distinguer prévu/développé/testé/validé ; signaler les écarts sans inventer de preuves.
 - Audit sur chaque évolution, rapport hebdomadaire, mise à jour du suivi global et trois prochaines actions par application.

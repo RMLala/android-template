@@ -29,6 +29,13 @@ Applicabilité : toutes les applications actuelles et futures de RMLala. Ce docu
 
 **Parcours cible : licence activée → jeton Cloud lié à la licence et à l'appareil → Cloud disponible automatiquement, sans compte Cloud client.**
 
+## URL du Worker central — référence de configuration
+- Worker central actuellement retenu : `https://appforge-license-api.lalainaadclick.workers.dev`.
+- Ancien déploiement à ne plus configurer dans les nouvelles applications : `https://appforge-license-api.appforge-licences-mg.workers.dev`.
+- Conserver les contrats officiels du SDK, notamment `GET/PUT /v1/cloud/snapshot` et `POST /v1/status`. Ne pas changer le sous-domaine global du compte Cloudflare, les secrets, ni la base D1 lors d'une correction d'URL.
+- **Cette URL n'est pas une preuve de disponibilité du service.** La route `/v1/config` a été signalée en erreur HTTP 500 ; exiger des tests réels avant de déclarer licences, activation ou synchronisation opérationnelles.
+- Corriger les références dans les applications via des branches/PR, sans modification directe de `main`.
+
 ## CI et livraison
 - Une branche par travail, jamais directement main, PR et tests obligatoires ; fusion des PR techniques conformes préautorisée, demander autorisation pour changements fonctionnels majeurs.
 - Avant CHAQUE Push de livraison et chaque livraison, redemander par cases à cocher : HTML autonome, EXE Windows portable, EXE installable optionnel, APK Debug, APK Release signé API23, APK Release signé API29, Cloud/sauvegarde/licences. Ne pas générer automatiquement tous les formats.

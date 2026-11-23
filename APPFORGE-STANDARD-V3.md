@@ -33,7 +33,7 @@ Applicabilité : toutes les applications actuelles et futures de RMLala. Ce docu
 - Worker central actuellement retenu : `https://appforge-license-api.lalainaadclick.workers.dev`.
 - Ancien déploiement à ne plus configurer dans les nouvelles applications : `https://appforge-license-api.appforge-licences-mg.workers.dev`.
 - Conserver les contrats officiels du SDK, notamment `GET/PUT /v1/cloud/snapshot` et `POST /v1/status`. Ne pas changer le sous-domaine global du compte Cloudflare, les secrets, ni la base D1 lors d'une correction d'URL.
-- **Cette URL n'est pas une preuve de disponibilité du service.** La route `/v1/config` a été signalée en erreur HTTP 500 ; exiger des tests réels avant de déclarer licences, activation ou synchronisation opérationnelles.
+- **Dernier contrôle de disponibilité (22/11/2026) :** un premier déploiement a échoué car le secret `CLOUDFLARE_API_TOKEN` était absent et l'identifiant de compte non renseigné. Après configuration, le déploiement du Worker a réussi, la migration distante `0008_cloud_files_r2.sql` a été appliquée, `/health` et `/v1/config` ont répondu avec le schéma attendu (clé publique P-256 et protocole `appforge-license-v1`), et `GET /v1/cloud/snapshot` sans jeton a renvoyé le `401` attendu. **Ce smoke test ne valide pas encore** l'activation d'une licence réelle, `POST /v1/status`, l'émission/renouvellement du jeton Cloud ni un `GET/PUT` authentifié du snapshot ou une synchronisation multi-appareils. Ne pas déclarer le parcours licence/Cloud entièrement certifié avant ces tests.
 - Corriger les références dans les applications via des branches/PR, sans modification directe de `main`.
 
 ## CI et livraison
